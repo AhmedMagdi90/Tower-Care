@@ -55,6 +55,8 @@ class _DownSitesScreenState extends State<DownSitesScreen> {
         ),
         GovernorateFilterBar(
           activeGovernorates: provider.downSiteGovernorates,
+          allGovernorates: provider.allGovernorates,
+          governorateSiteCounts: provider.governorateSiteCounts,
           onToggle: context.read<TrackerProvider>().toggleDownSiteGovernorate,
         ),
         Padding(

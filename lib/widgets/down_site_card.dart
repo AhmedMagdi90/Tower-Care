@@ -225,8 +225,8 @@ class _DownSiteCardState extends State<DownSiteCard> {
     if (comment == null) return;
     await widget.onUpdateComment(comment);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Comment updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Comment updated')));
   }
 }

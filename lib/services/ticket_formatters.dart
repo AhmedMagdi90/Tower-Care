@@ -4,13 +4,28 @@ import 'package:intl/intl.dart';
 import '../models/down_cell.dart';
 import '../models/down_site.dart';
 
-const trackedGovernorates = {'Sohag', 'Qena', 'Luxor', 'Aswan'};
+const trackedGovernorates = {
+  'Minya',
+  'Asyut',
+  'Sohag',
+  'Aswan',
+  'Qena',
+  'Beni Suef',
+  'Luxor',
+  'Faiyum',
+  'New Valley',
+};
 
 const governorateColors = {
-  'Sohag': Color(0xFF1D9E75),
-  'Qena': Color(0xFF378ADD),
-  'Luxor': Color(0xFFBA7517),
-  'Aswan': Color(0xFFE24B4A),
+  'Minya': Color(0xFF8B5CF6), // Purple
+  'Asyut': Color(0xFFEC4899), // Pink
+  'Sohag': Color(0xFF1D9E75), // Green
+  'Aswan': Color(0xFFE24B4A), // Red
+  'Qena': Color(0xFF378ADD), // Blue
+  'Beni Suef': Color(0xFF0D9488), // Teal
+  'Luxor': Color(0xFFBA7517), // Orange
+  'Faiyum': Color(0xFFD97706), // Amber
+  'New Valley': Color(0xFF6366F1), // Indigo
   'Unknown': Color(0xFF6B7280),
 };
 
@@ -18,7 +33,23 @@ final shortDateTimeFormat = DateFormat('dd MMM HH:mm');
 final fileDateTimeFormat = DateFormat('yyyyMMdd_HHmmss');
 
 Color governorateColor(String governorate) {
-  return governorateColors[governorate] ?? const Color(0xFF6B7280);
+  final cleanName = governorate.trim();
+  if (governorateColors.containsKey(cleanName)) {
+    return governorateColors[cleanName]!;
+  }
+  final hash = cleanName.hashCode;
+  final colors = [
+    const Color(0xFF8B5CF6),
+    const Color(0xFFEC4899),
+    const Color(0xFF0D9488),
+    const Color(0xFFD97706),
+    const Color(0xFF6366F1),
+    const Color(0xFF10B981),
+    const Color(0xFFF59E0B),
+    const Color(0xFFEF4444),
+    const Color(0xFF3B82F6),
+  ];
+  return colors[hash.abs() % colors.length];
 }
 
 String durationText(DateTime firstOcc) {

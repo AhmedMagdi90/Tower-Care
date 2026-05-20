@@ -29,8 +29,11 @@ class TrackerProvider extends ChangeNotifier {
   List<String> outageCategories = [];
   List<String> alertGroups = [];
 
-  Set<String> downSiteGovernorates = {...trackedGovernorates};
-  Set<String> downCellGovernorates = {...trackedGovernorates};
+  List<String> allGovernorates = [];
+  Map<String, int> governorateSiteCounts = {};
+
+  Set<String> downSiteGovernorates = {};
+  Set<String> downCellGovernorates = {};
   String downSiteSearch = '';
   String downCellSearch = '';
   Set<String> selectedOutageCategories = {};
@@ -200,6 +203,17 @@ class TrackerProvider extends ChangeNotifier {
   }
 
   Future<void> _loadFilterOptions() async {
+    final govCounts = await _database.getGovernorateSiteCounts();
+    governorateSiteCounts = {
+      for (final row in govCounts)
+        row['governorate'].toString(): row['site_count'] as int,
+    };
+    allGovernorates = govCounts
+        .map((row) => row['governorate'].toString())
+        .toList();
+
+    _syncGovernorateFilters();
+
     outageCategories = await _database.distinctValues(
       'down_sites',
       'outage_cat',
@@ -207,21 +221,40 @@ class TrackerProvider extends ChangeNotifier {
     alertGroups = await _database.distinctValues('down_cells', 'alert_group');
   }
 
+  void _syncGovernorateFilters() {
+    final currentAll = allGovernorates.toSet();
+    if (downSiteGovernorates.isEmpty) {
+      downSiteGovernorates = {...allGovernorates};
+    } else {
+      downSiteGovernorates = downSiteGovernorates.intersection(currentAll);
+      if (downSiteGovernorates.isEmpty && allGovernorates.isNotEmpty) {
+        downSiteGovernorates = {...allGovernorates};
+      }
+    }
+
+    if (downCellGovernorates.isEmpty) {
+      downCellGovernorates = {...allGovernorates};
+    } else {
+      downCellGovernorates = downCellGovernorates.intersection(currentAll);
+      if (downCellGovernorates.isEmpty && allGovernorates.isNotEmpty) {
+        downCellGovernorates = {...allGovernorates};
+      }
+    }
+  }
+
   Future<void> _loadStats() async {
     sitesLoaded = await _database.count('sites');
     downSitesStored = await _database.count('down_sites');
     downCellsStored = await _database.count('down_cells');
     actionsLogged = await _database.count('actions');
-    downSitesMyGovs = await _database.downSitesForGovernorates(
-      trackedGovernorates,
-    );
+
+    final govs = allGovernorates.isNotEmpty
+        ? allGovernorates.toSet()
+        : trackedGovernorates;
+    downSitesMyGovs = await _database.downSitesForGovernorates(govs);
     govBlocked = await _database.govBlockedCount();
-    downCellsMyGovs = await _database.downCellsForGovernorates(
-      trackedGovernorates,
-    );
-    uniqueSitesAffected = await _database.uniqueSitesAffected(
-      trackedGovernorates,
-    );
+    downCellsMyGovs = await _database.downCellsForGovernorates(govs);
+    uniqueSitesAffected = await _database.uniqueSitesAffected(govs);
   }
 
   Future<T> _runBusy<T>(Future<T> Function() task) async {

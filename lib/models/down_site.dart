@@ -12,6 +12,9 @@ class DownSite {
     required this.severity,
     required this.icdStatus,
     this.handlingComment,
+    this.status = 'active',
+    this.clearedAt,
+    this.hasPowerTicket = false,
     this.actions = const [],
   });
 
@@ -25,11 +28,15 @@ class DownSite {
   final int severity;
   final String icdStatus;
   final String? handlingComment;
+  final String status;
+  final DateTime? clearedAt;
+  final bool hasPowerTicket;
   final List<ActionLog> actions;
 
   factory DownSite.fromMap(
     Map<String, Object?> map, {
     List<ActionLog> actions = const [],
+    bool hasPowerTicket = false,
   }) {
     return DownSite(
       id: map['id'] as int?,
@@ -44,6 +51,11 @@ class DownSite {
       severity: int.tryParse((map['severity'] ?? '').toString()) ?? 0,
       icdStatus: (map['icd_status'] ?? '').toString(),
       handlingComment: _nullableString(map['handling_comment']),
+      status: (map['status'] ?? 'active').toString(),
+      clearedAt: map['cleared_at'] != null
+          ? DateTime.tryParse(map['cleared_at'].toString())
+          : null,
+      hasPowerTicket: hasPowerTicket,
       actions: actions,
     );
   }

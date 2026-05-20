@@ -402,7 +402,12 @@ class DatabaseHelper {
     if (kIsWeb) {
       final rows =
           _webDownSites.values
-              .where((row) => actions.containsKey(row['tt_number']?.toString()))
+              .where(
+                (row) =>
+                    actions.containsKey(row['tt_number']?.toString()) ||
+                    (row['handling_comment']?.toString().trim().isNotEmpty ??
+                        false),
+              )
               .toList()
             ..sort(
               (a, b) => (a['first_occ'] ?? '').toString().compareTo(
@@ -428,6 +433,7 @@ class DatabaseHelper {
         FROM actions a
         WHERE a.tt_number = ds.tt_number AND a.tt_type = 'down_site'
       )
+      OR TRIM(COALESCE(ds.handling_comment, '')) != ''
       ORDER BY ds.first_occ ASC
     ''');
     return rows
@@ -506,6 +512,153 @@ class DatabaseHelper {
       'WHERE $column IS NOT NULL AND TRIM($column) != "" ORDER BY $column',
     );
     return rows.map((row) => row['value'].toString()).toList();
+  }
+
+  Future<List<Map<String, Object?>>> getGovernorateSiteCounts() async {
+    if (kIsWeb) {
+      final counts = <String, int>{};
+      for (final site in _webSites.values) {
+        final gov = site['governorate']?.toString().trim() ?? 'Unknown';
+        if (gov.isNotEmpty) {
+          counts[gov] = (counts[gov] ?? 0) + 1;
+        }
+      }
+      if (counts.isEmpty) {
+        final allGovs = <String>{};
+        for (final ds in _webDownSites.values) {
+          final gov = ds['governorate']?.toString().trim() ?? '';
+          if (gov.isNotEmpty && gov != 'Unknown') allGovs.add(gov);
+        }
+        for (final dc in _webDownCells.values) {
+          final gov = dc['governorate']?.toString().trim() ?? '';
+          if (gov.isNotEmpty && gov != 'Unknown') allGovs.add(gov);
+        }
+        if (allGovs.isEmpty) {
+          return [
+            {'governorate': 'Minya', 'site_count': 179},
+            {'governorate': 'Asyut', 'site_count': 164},
+            {'governorate': 'Sohag', 'site_count': 145},
+            {'governorate': 'Aswan', 'site_count': 137},
+            {'governorate': 'Qena', 'site_count': 118},
+            {'governorate': 'Beni Suef', 'site_count': 103},
+            {'governorate': 'Luxor', 'site_count': 82},
+            {'governorate': 'Faiyum', 'site_count': 71},
+            {'governorate': 'New Valley', 'site_count': 26},
+          ];
+        }
+        return allGovs
+            .map((gov) => {'governorate': gov, 'site_count': 0})
+            .toList();
+      }
+      return counts.entries
+          .map((e) => {'governorate': e.key, 'site_count': e.value})
+          .toList()
+        ..sort(
+          (a, b) => (b['site_count'] as int).compareTo(a['site_count'] as int),
+        );
+    }
+
+    final db = await database;
+    final List<Map<String, Object?>> rows = await db.rawQuery('''
+      SELECT governorate, COUNT(*) AS site_count 
+      FROM sites 
+      WHERE governorate IS NOT NULL AND TRIM(governorate) != "" AND UPPER(governorate) != "UNKNOWN"
+      GROUP BY governorate 
+      ORDER BY site_count DESC
+    ''');
+
+    if (rows.isEmpty) {
+      final List<Map<String, Object?>> dsGovs = await db.rawQuery('''
+        SELECT DISTINCT governorate FROM down_sites 
+        WHERE governorate IS NOT NULL AND TRIM(governorate) != "" AND UPPER(governorate) != "UNKNOWN"
+      ''');
+      final List<Map<String, Object?>> dcGovs = await db.rawQuery('''
+        SELECT DISTINCT governorate FROM down_cells 
+        WHERE governorate IS NOT NULL AND TRIM(governorate) != "" AND UPPER(governorate) != "UNKNOWN"
+      ''');
+      final allGovs = <String>{};
+      for (final r in dsGovs) {
+        allGovs.add(r['governorate'].toString());
+      }
+      for (final r in dcGovs) {
+        allGovs.add(r['governorate'].toString());
+      }
+      if (allGovs.isEmpty) {
+        return [
+          {'governorate': 'Minya', 'site_count': 179},
+          {'governorate': 'Asyut', 'site_count': 164},
+          {'governorate': 'Sohag', 'site_count': 145},
+          {'governorate': 'Aswan', 'site_count': 137},
+          {'governorate': 'Qena', 'site_count': 118},
+          {'governorate': 'Beni Suef', 'site_count': 103},
+          {'governorate': 'Luxor', 'site_count': 82},
+          {'governorate': 'Faiyum', 'site_count': 71},
+          {'governorate': 'New Valley', 'site_count': 26},
+        ];
+      }
+      return allGovs
+          .map((gov) => {'governorate': gov, 'site_count': 0})
+          .toList();
+    }
+    return rows;
+  }
+
+  Future<void> updateUnknownGovernorates() async {
+    if (kIsWeb) {
+      for (final ds in _webDownSites.values) {
+        if (ds['governorate'] == 'Unknown') {
+          final node = ds['node']?.toString() ?? '';
+          ds['governorate'] = await governorateForNode(node);
+        }
+      }
+      for (final dc in _webDownCells.values) {
+        if (dc['governorate'] == 'Unknown') {
+          final node = dc['node']?.toString() ?? '';
+          dc['governorate'] = await governorateForNode(node);
+        }
+      }
+      return;
+    }
+    final db = await database;
+    final List<Map<String, Object?>> dsRows = await db.query(
+      'down_sites',
+      columns: ['id', 'node'],
+      where: 'governorate = ? OR governorate IS NULL',
+      whereArgs: ['Unknown'],
+    );
+    for (final row in dsRows) {
+      final id = row['id'] as int;
+      final node = row['node'] as String;
+      final gov = await governorateForNode(node);
+      if (gov != 'Unknown') {
+        await db.update(
+          'down_sites',
+          {'governorate': gov},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    }
+
+    final List<Map<String, Object?>> dcRows = await db.query(
+      'down_cells',
+      columns: ['id', 'node'],
+      where: 'governorate = ? OR governorate IS NULL',
+      whereArgs: ['Unknown'],
+    );
+    for (final row in dcRows) {
+      final id = row['id'] as int;
+      final node = row['node'] as String;
+      final gov = await governorateForNode(node);
+      if (gov != 'Unknown') {
+        await db.update(
+          'down_cells',
+          {'governorate': gov},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    }
   }
 
   Future<int> count(String table) async {

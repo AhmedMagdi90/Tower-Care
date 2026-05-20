@@ -56,6 +56,7 @@ class ExcelImportService {
       );
       inserted++;
     }
+    await _db.updateUnknownGovernorates();
     return inserted;
   }
 

@@ -11,6 +11,8 @@ class DownCell {
     required this.alertGroup,
     required this.severity,
     required this.icdStatus,
+    this.status = 'active',
+    this.clearedAt,
     this.actions = const [],
   });
 
@@ -23,6 +25,8 @@ class DownCell {
   final String alertGroup;
   final int severity;
   final String icdStatus;
+  final String status;
+  final DateTime? clearedAt;
   final List<ActionLog> actions;
 
   factory DownCell.fromMap(
@@ -41,6 +45,10 @@ class DownCell {
       alertGroup: (map['alert_group'] ?? '').toString(),
       severity: int.tryParse((map['severity'] ?? '').toString()) ?? 0,
       icdStatus: (map['icd_status'] ?? '').toString(),
+      status: (map['status'] ?? 'active').toString(),
+      clearedAt: map['cleared_at'] != null
+          ? DateTime.tryParse(map['cleared_at'].toString())
+          : null,
       actions: actions,
     );
   }
