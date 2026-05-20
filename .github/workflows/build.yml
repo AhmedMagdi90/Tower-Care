@@ -1,0 +1,61 @@
+name: Build Flutter Apps
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build APK
+        run: flutter build apk --release
+        
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Windows
+        run: flutter build windows --release
+        
+      - name: Upload Windows Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-app
+          path: build/windows/x64/runner/Release/
